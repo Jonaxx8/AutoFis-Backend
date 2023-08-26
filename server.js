@@ -14,8 +14,12 @@ app.post('/upload-image', upload.single('image'), (req, res) => {
     // Save the image to a folder on the server
     const imageName = 'uploaded-image.jpg'; // Choose a suitable name
     const imagePath = path.join(__dirname, 'images', imageName);
+    //remove image before saving
+    if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+    }
     fs.writeFileSync(imagePath, imageBuffer);
-
+    
     // Respond with a success message
     res.json({ message: 'Image uploaded successfully' });
 });
