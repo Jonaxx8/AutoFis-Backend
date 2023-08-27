@@ -1,27 +1,42 @@
 const express = require('express');
 const multer = require('multer');
-const fs = require('fs'); // Import the fs module
-const path = require('path'); // Import the path module
+const fs = require('fs');
+const path = require('path');
+const tmImage = require('@teachablemachine/image');
+
 const app = express();
-const port = process.env.PORT || 3000; // Use a different port for AWS
+const port = process.env.PORT || 3000;
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage });
 
-app.post('/upload-image', upload.single('image'), (req, res) => {
-    const imageBuffer = req.file.buffer;
+// Load the Teachable Machine model
+const modelURL = './model/model.json';
+const metadataURL = './model/metadata.json';
+let model, maxPredictions;
 
-    // Save the image to a folder on the server
-    const imageName = 'uploaded-image.jpg'; // Choose a suitable name
-    const imagePath = path.join(__dirname, 'images', imageName);
-    //remove image before saving
-    if (fs.existsSync(imagePath)) {
-        fs.unlinkSync(imagePath);
+async function initModel() {
+    model = await tmImage.load(modelURL, metadataURL);
+    maxPredictions = model.getTotalClasses();
+}
+
+// Initialize the model
+initModel();
+
+app.post('/upload-image', upload.single('image'), async (req, res) => {
+    try {
+        const imageBuffer = req.file.buffer;
+
+        // Process the image using the Teachable Machine model
+        const image = await tmImage.image.load(imageBuffer);
+        const prediction = await model.predict(image);
+
+        // Respond with the predictions
+        res.json({ predictions: prediction });
+    } catch (error) {
+        console.error(error);
+        res.status(500).json({ error: 'An error occurred' });
     }
-    fs.writeFileSync(imagePath, imageBuffer);
-    
-    // Respond with a success message
-    res.json({ message: 'Image uploaded successfully' });
 });
 
 app.use('/images', express.static(path.join(__dirname, 'images')));
